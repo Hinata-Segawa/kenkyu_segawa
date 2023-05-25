@@ -2,6 +2,7 @@ from music21 import *
 import itertools
 import numpy as np
 from xmlRead import *
+from HMM import *
 
 def guitar_frets_dict():
     # 開放弦から20フレット分
@@ -36,123 +37,6 @@ def get_items(frets):
   return items
 
 
-def cal_f_dist(a, b):
-    dist = abs(a // 6 - b // 6)  # 次の音へのフレットの距離
-    return dist
-
-
-
-
-def cal_s_dist(a,b):
-    dist = abs(a % 6 - b % 6)# 次の音への弦の距離
-    return dist
-
-
-
-
-def start_cal_cost(i):
-    if i == -1:
-        cost = 100000000
-    else:
-        cost = 1
-
-    return cost
-
-
-
-#コストの計算
-def cal_cost(i,j,k):
-    f_dist = cal_f_dist(i,j)
-    s_dist = cal_s_dist(i,j)
-
-    if k == -1:
-        #押弦位置同じ
-        if i == j:
-            cost = 1
-        else:
-            cost = 100
-        return cost
-
-    #フレット移動距離4フレット未満
-    if f_dist < 4:
-
-        #開放弦禁止
-        if j // 6 == 0:
-            cost = 1000
-        
-        #フレット移動距離2フレット以上
-        if s_dist >= 2:
-            cost = 100
-        else:
-            cost = 1
-    else:
-        cost = 1000
-
-    # print("cost =",cost)
-    return cost
-
-
-
-def normalization(data, sum_list):  # 正規化
-  for i in range(len(data)):
-    for j in range(len(data[0])):
-      data[i][j] /= sum_list[i]
-
-  return data
-
-
-# def make_dist_list(data):
-#   dist_list = []  # 次の音まで何フレット離れているかを格納するリスト
-
-#   for i in range(len(data[0])-1):  # 最後の要素は次の音がないから走査する必要ない
-#     dist = cal_dist(data[0][i], data[0][i+1])
-#     dist_list.append(dist)
-
-#   return dist_list
-
-
-
-# 初期確率
-def init_startprob(n_observe_states,observations):
-
-    start_prob = {}
-
-    for i in range(n_observe_states):
-        #観測情報の先頭だけコストを軽くする
-        if i == observations[0]:
-            start_prob[i] = 1
-        else:
-            start_prob[i] = 100
-
-    return start_prob
-
-
-
-
-# 出力確率
-def init_emmisionprob(n_observe_states, frets_items):
-    emmision = {}
-
-
-    # 100,80,1の割り当て
-    for i in range(n_observe_states):
-        append = {}
-        i_key = frets_items[i][0]
-        for j in range(n_observe_states):
-            if i == j:  # 全部同じなら100
-                append[j] = 1
-
-            elif frets_items[j][0] == i_key:  # 同じ音なら10
-                append[j] = 10
-
-            else:
-                append[j] = 50
-
-        
-        emmision[i] = append
-
-    return emmision
-
 
 def judge_downup(notes):
     down_up = []
@@ -168,39 +52,6 @@ def judge_downup(notes):
             down_up.append(-1)
 
     return down_up
-
-
-def viterbi(observs, states, sp, ep,du):
-    """viterbi algorithm
-    Output : labels estimated"""
-    T = {}  # present state
-    for st in states:
-        T[st] = (sp[st]+ep[st][observs[0]]+start_cal_cost(du[0]), [st])
-
-
-    for i in range(len(observs)-1):
-        ob = observs[i+1]
-        T = next_state(ob, states, T,ep,du[i+1])
-    prob, labels = min([T[st] for st in T])
-
-
-    return prob, labels
-
-
-def next_state(ob, states, T, ep,du):
-    """calculate a next state's probability, and get a next path"""
-    U = {}  # next state
-    for next_s in states:
-        U[next_s] = (1000000000, [])
-        # print("next_s =",next_s)
-        for now_s in states:
-            # print("now_s =",now_s)
-            p = T[now_s][0] + cal_cost(now_s,next_s,du) + ep[next_s][ob]
-            if p < U[next_s][0]:
-                U[next_s] = [p, T[now_s][1]+[next_s]]
-
-    # print("U=", U)
-    return U
 
 
 
@@ -272,6 +123,31 @@ def make_Measures(Input, St, notes, length):
 
 
 
+def update_note(notes,new_noteAndRest):
+    for i in range(len(notes)):
+        if notes[i].isNote:
+            notes[i].articulations = [articulations.StringIndication(new_noteAndRest[i]%6+1)
+                                    ,articulations.FretIndication(new_noteAndRest[i]//6)]
+            
+            #新しい押弦位置のpitchに更新
+            p = frets_items[new_noteAndRest[i]][0]
+            notes[i].pitch = pitch.Pitch(p)
+
+
+
+def init_new_noteAndRest(new_noteAndRest):
+    count = 0
+    #休符は-1にして新しく配列に入れる
+    for i in range(len(notes)):
+        if notes[i].isNote:
+            new_noteAndRest.append(res[count])
+            count += 1
+        else:
+            new_noteAndRest.append(-1)
+
+
+
+
 if __name__ == "__main__":
     Input = converter.parse("XML\\5.musicxml")   
 
@@ -281,27 +157,19 @@ if __name__ == "__main__":
 
 
 
-
+    #音符と休符の情報を入れる
     for i in range(len(Input.flat.notesAndRests)):
         notes.append(Input.flat.notesAndRests[i])
-    
 
 
-    
-    # print("lenFlat=",len(notes))
-
-
-
-
+    #sfにs+6fの値を入れる
     for i in range(len(notes)):
         if notes[i].isNote:
             sf.append(notes[i].articulations[0].number + 6*notes[i].articulations[1].number-1)
 
-    print("sf=",sf)
-    # print("len=",len(sf))
 
 
-    #表拍か裏拍か
+    #表拍か裏拍かを判断してdown_upに入れる
     down_up = judge_downup(notes)
 
 
@@ -312,6 +180,7 @@ if __name__ == "__main__":
         if type(Input[i]) == stream.Part:
             num = i
             break
+
 
     states, frets = guitar_frets_dict()
     n_states = len(states)  # 長さ(126)
@@ -326,49 +195,25 @@ if __name__ == "__main__":
     
 
 
-    # 初期コスト
-    start_prob = init_startprob(n_states,observations)
-
-
-    # 出力確率
-    emmision_prob = init_emmisionprob(n_states, frets_items)
+    #ビタビに入れた結果をresに代入
+    res =  HMM_guitar(observations,down_up)
     
 
-    a,b = viterbi(observations,states,start_prob,emmision_prob,down_up)
-
-    # print("b=",b)
-    # print("len=",len(b))
-    # print(a)
-    
+   
     print("出力=")
-    for i in range(len(b)):
-        print(b[i]%6+1,"弦",b[i]//6,"フレット",frets_items[b[i]][0]) 
+    for i in range(len(res)):
+        print(res[i]%6+1,"弦",res[i]//6,"フレット",frets_items[res[i]][0]) 
 
 
     new_noteAndRest = []
-    count = 0
-
-    #休符は-1にして新しく配列に入れる
-    for i in range(len(notes)):
-        if notes[i].isNote:
-            new_noteAndRest.append(b[count])
-            count += 1
-        else:
-            new_noteAndRest.append(-1)
-
-    # print("len=",new_noteAndRest)
-
-    for i in range(len(notes)):
-        if notes[i].isNote:
-            notes[i].articulations = [articulations.StringIndication(new_noteAndRest[i]%6+1)
-                                    ,articulations.FretIndication(new_noteAndRest[i]//6)]
-            
-            #新しい押弦位置のpitchに更新
-            p = frets_items[new_noteAndRest[i]][0]
-            notes[i].pitch = pitch.Pitch(p)
 
 
+    #新しい音符と休符を入れる
+    init_new_noteAndRest(new_noteAndRest)
 
+
+    #押弦位置の変わった場所のnoteを変える
+    update_note(notes,new_noteAndRest)
 
 
     # 取得した楽譜の小節数        

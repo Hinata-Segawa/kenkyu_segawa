@@ -107,16 +107,6 @@ def normalization(data, sum_list):  # 正規化
   return data
 
 
-# def make_dist_list(data):
-#   dist_list = []  # 次の音まで何フレット離れているかを格納するリスト
-
-#   for i in range(len(data[0])-1):  # 最後の要素は次の音がないから走査する必要ない
-#     dist = cal_dist(data[0][i], data[0][i+1])
-#     dist_list.append(dist)
-
-#   return dist_list
-
-
 
 # 初期確率
 def init_startprob(n_observe_states,observations):
@@ -152,12 +142,6 @@ def init_transmat(n_observe_states, frets_items):
                 if j // 6 == 0:
                     append[j] = 50 
 
-                # note = frets_items[i][0]  # 音の代入
-                # 同じ音かつフレットの距離が2以下の時80を割り当て
-
-                # if cal_f_dist(i, j) <= 2 and note == frets_items[j][0]:
-                #     trans[i][j] = 80
-                #     sum_list[i] += 30
             else:
                 append[j] = 50
 
@@ -192,28 +176,28 @@ def init_emmisionprob(n_observe_states, frets_items):
 
 
 
-def viterbi(observs, states, sp, tp, ep,du):
+def viterbi(observs, states, sp, ep,du):
     """viterbi algorithm
     Output : labels estimated"""
     T = {}  # present state
     for st in states:
-        T[st] = (sp[st]+ep[st][observs[0]], [st])
+        T[st] = (sp[st]+ep[st][observs[0]]+start_cal_cost(du[0]), [st])
 
 
     for i in range(len(observs)-1):
         ob = observs[i+1]
-        T = next_state(ob, states, T, tp, ep,du[i+1])
+        T = next_state(ob, states, T,ep,du[i+1])
     prob, labels = min([T[st] for st in T])
 
 
     return prob, labels
 
 
-def next_state(ob, states, T, tp, ep,du):
+def next_state(ob, states, T, ep,du):
     """calculate a next state's probability, and get a next path"""
     U = {}  # next state
     for next_s in states:
-        U[next_s] = (1000, [])
+        U[next_s] = (1000000000, [])
         # print("next_s =",next_s)
         for now_s in states:
             # print("now_s =",now_s)
@@ -231,11 +215,11 @@ def HMM_guitar(input,down_up):
     states, frets = guitar_frets_dict()
     n_states = len(states)  # 長さ(126)
     frets_items = get_items(frets)  # 音の番号と種類
-    du = [[i for i in down_up]]
+    du = down_up
 
 
 
-    observations = [[i for i in input]]
+    observations = input
     # 例):[48, 50, 52, 53, 55, 55, 48, 50, 52, 53, 55, 55]
 
 
@@ -246,25 +230,12 @@ def HMM_guitar(input,down_up):
     # 出力確率
     emmision_prob = init_emmisionprob(n_states, frets_items)
     
-    # 遷移確率
-    transit_prob = init_transmat(n_states,frets_items)
+
+    a,b = viterbi(observations,states,start_prob,emmision_prob,du)
 
 
-    a,b = viterbi(observations,states,start_prob,transit_prob,emmision_prob,down_up)
 
-
-    print(b)
-    print(a)
-
-
-    # 出力
-    res = []
-
-    for i in range(len(b)):
-      print(b[i]%6+1,"弦",b[i]//6,"フレット")
-      res.append((b[i]%6 + 1, b[i]//6))
-
-    return res
+    return b
 
 
     
