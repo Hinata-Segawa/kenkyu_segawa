@@ -44,6 +44,7 @@ def judge_downup(notes):
     for note in notes:
         offset = note.offset
 
+        #10かけて10で割った余りが0なら表拍
         if (offset *10) % 10 == 0:
             # 表拍
             down_up.append(1)
@@ -199,7 +200,7 @@ if __name__ == "__main__":
     res =  HMM_guitar(observations,down_up)
     
 
-   
+    print(res)
     print("出力=")
     for i in range(len(res)):
         print(res[i]%6+1,"弦",res[i]//6,"フレット",frets_items[res[i]][0]) 
@@ -245,7 +246,7 @@ if __name__ == "__main__":
     #チューニング情報入れる
     modify_musicxml("output.musicxml")
 
-    # output = converter.parse("output_modified.musicxml")
+    # output = converter.parse("output.musicxml")
     # output.show()
 
     

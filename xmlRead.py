@@ -71,8 +71,8 @@ def modify_musicxml(xml_file):
     add_staff_size(root, p_id, 100, 167)
 
     # 結果の保存
-    modified_file = xml_file.split('.')[0] + "_modified.musicxml"
-    tree.write(modified_file, encoding='utf-8', xml_declaration=True)
-    return modified_file
+    # modified_file = xml_file.split('.')[0] + "_modified.musicxml"
+    tree.write(xml_file, encoding='utf-8', xml_declaration=True)
+    return xml_file
 
 #
