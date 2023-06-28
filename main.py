@@ -43,6 +43,7 @@ def get_items(frets):
     return items
 
 
+#四分音符レベルで裏拍を判断する
 def judge_downup(notes):
     down_up = []
     count = 1
@@ -235,6 +236,7 @@ if __name__ == "__main__":
     # ここで楽器情報をギターにする
     inst = instrument.ElectricGuitar()
     stream1 = stream.Stream()
+
 
     # 小節
     make_Measures(Input, stream1, notes, length)
