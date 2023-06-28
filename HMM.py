@@ -76,18 +76,17 @@ def cal_cost(i,j,k):
         if i == j:
             cost = 1
         else:
-            cost = 100
-        return cost
+            cost = 1000
 
     #フレット移動距離4フレット未満
-    if f_dist < 4:
+    elif f_dist < 4:
 
         #開放弦禁止
         if j // 6 == 0:
             cost = 1000
         
-        #フレット移動距離2フレット以上
-        if s_dist >= 2:
+        #弦移動2以上
+        elif s_dist >= 2:
             cost = 100
         else:
             cost = 1
@@ -123,31 +122,6 @@ def init_startprob(n_observe_states,observations):
     return start_prob
 
 
-# 遷移確率
-def init_transmat(n_observe_states, frets_items):
-
-    trans = {}
-
-    sum_list = [0]*n_observe_states  # 各行の数値の合計値のリスト
-
-    for i in range(n_observe_states):
-        append = {}
-        for j in range(n_observe_states):
-
-            # 4フレット離れていたら1を割り当て
-            if cal_f_dist(i, j) < 4:
-                append[j] = 1
-                sum_list[i] += 1
-                
-                if j // 6 == 0:
-                    append[j] = 50 
-
-            else:
-                append[j] = 50
-
-        trans[i] = append
-
-    return trans
 
 
 # 出力確率
@@ -167,7 +141,7 @@ def init_emmisionprob(n_observe_states, frets_items):
                 append[j] = 10
 
             else:
-                append[j] = 50
+                append[j] = 100
 
         
         emmision[i] = append
@@ -236,6 +210,3 @@ def HMM_guitar(input,down_up):
 
 
     return b
-
-
-    
