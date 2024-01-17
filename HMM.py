@@ -1,10 +1,7 @@
-import hmmlearn
-from hmmlearn import hmm
 import numpy as np
-import random
 import itertools
-import math
-import copy
+import sys
+from music21 import *
 # 観測値
 
 
@@ -39,6 +36,20 @@ def get_items(frets):
   items = sorted(items, key = lambda x:x[1])
 
   return items
+
+
+def is_note_in_scale(n, key):
+    """指定された音符がキーシグネチャのスケールに含まれているかを判定する関数"""
+
+    if not key:
+        print("No key signature provided.")
+        return False
+
+    # スケールの音符を取得
+    scale_notes = [p.name for p in scale.MajorScale(key.tonic).pitches[:-1]]
+
+    # 音符がスケールに含まれているかを判定
+    return note.Note(n).name in scale_notes
 
 
 
@@ -76,22 +87,38 @@ def cal_cost(i,j,k):
         if i == j:
             cost = 1
         else:
-            cost = 1000
+            cost = 1000000000
 
     #フレット移動距離4フレット未満
     elif f_dist < 4:
 
         #開放弦禁止
         if j // 6 == 0:
-            cost = 1000
+            cost = 100000000
         
-        #弦移動2以上
-        elif s_dist >= 2:
-            cost = 100
+        #弦移動3以上
+        elif s_dist >= 3:
+            cost = 10000
+        elif s_dist == 2:
+            if f_dist >= 2:
+                cost = 7500
+            elif f_dist == 1:
+                cost = 5000
+            else:
+                cost = 1000
+        elif s_dist == 1:
+            if f_dist >= 2:
+                cost = 400
+            else:
+                cost = 200
         else:
-            cost = 1
+            if f_dist >= 2:
+                cost = 50
+            else:
+                cost = 1
+
     else:
-        cost = 1000
+        cost = 1000000000
 
     # print("cost =",cost)
     return cost
@@ -115,9 +142,12 @@ def init_startprob(n_observe_states,observations):
     for i in range(n_observe_states):
         #観測情報の先頭だけコストを軽くする
         if i == observations[0]:
-            start_prob[i] = 1
+            start_prob[i] = 0
+
+        elif i // 6 == 0:
+            start_prob[i] = 10000000
         else:
-            start_prob[i] = 100
+            start_prob[i] = 0
 
     return start_prob
 
@@ -125,23 +155,29 @@ def init_startprob(n_observe_states,observations):
 
 
 # 出力確率
-def init_emmisionprob(n_observe_states, frets_items):
+def init_emmisionprob(n_observe_states, frets_items,key):
     emmision = {}
 
 
     # 100,80,1の割り当て
     for i in range(n_observe_states):
         append = {}
-        i_key = frets_items[i][0]
+        i_note = frets_items[i][0]
+        judge_in_scale = is_note_in_scale(i_note,key)
+        # print(i,":",i_note,"---",key,"=",judge_in_scale)
         for j in range(n_observe_states):
-            if i == j:  # 全部同じなら100
+            if i == j:  # 全部同じなら1
                 append[j] = 1
 
-            elif frets_items[j][0] == i_key:  # 同じ音なら10
-                append[j] = 10
+
+            elif judge_in_scale == True: #スケールの構成音なら
+                append[j] = 5000
+
+            elif j // 6 == 0:#開放弦禁止
+                append[j] = 100000000
 
             else:
-                append[j] = 100
+                append[j] = 100000000
 
         
         emmision[i] = append
@@ -154,6 +190,8 @@ def viterbi(observs, states, sp, ep,du):
     """viterbi algorithm
     Output : labels estimated"""
     T = {}  # present state
+
+    
     for st in states:
         T[st] = (sp[st]+ep[st][observs[0]]+start_cal_cost(du[0]), [st])
 
@@ -171,7 +209,7 @@ def next_state(ob, states, T, ep,du):
     """calculate a next state's probability, and get a next path"""
     U = {}  # next state
     for next_s in states:
-        U[next_s] = (1000000000, [])
+        U[next_s] = (sys.maxsize, [])
         # print("next_s =",next_s)
         for now_s in states:
             # print("now_s =",now_s)
@@ -183,7 +221,7 @@ def next_state(ob, states, T, ep,du):
     return U
 
 
-def HMM_guitar(input,down_up):
+def HMM_guitar(input,down_up,key):
     #(S,F)としたときにS+F = xとする． S = 弦，F = フレット ，0から125まで
 
     states, frets = guitar_frets_dict()
@@ -194,6 +232,7 @@ def HMM_guitar(input,down_up):
 
 
     observations = input
+    print("observations:",observations)
     # 例):[48, 50, 52, 53, 55, 55, 48, 50, 52, 53, 55, 55]
 
 
@@ -202,10 +241,11 @@ def HMM_guitar(input,down_up):
 
 
     # 出力確率
-    emmision_prob = init_emmisionprob(n_states, frets_items)
+    emmision_prob = init_emmisionprob(n_states, frets_items,key)
     
 
     a,b = viterbi(observations,states,start_prob,emmision_prob,du)
+    print("res:",b)
 
 
 
