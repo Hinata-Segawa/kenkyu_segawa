@@ -32,7 +32,7 @@ pip install music21 glob itertools numpy os
 
 何も考えないでプログラムを実行したい人は，以下の部分を見てください．
 ```python
-    file = "XML/Motor_Man.musicxml"
+    file = "XML/test.musicxml"
     base_score = MusicScore(file, 0.5) #1.0だと四分音符レベル，0.5だと八分音符レベル
     base_score.analyze_notes()
     base_score.analyze_hmm()
