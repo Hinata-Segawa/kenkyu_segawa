@@ -44,9 +44,10 @@ pip install music21 glob itertools numpy os
     score1.generate_score(score1.notes, output_name1)
 ```
 
-`file = "XML/Motor_Man.musicxml"`
-となっている部分を自分の好きなファイルに変えるだけで大丈夫です．
-もちろんMotor_Man.musicxmlのままでも実行できます．
+`file = "XML/test.musicxml"`
+ここでMusicXMLファイルを読み込みます．
+XMLディレクトリに今はtest.musicxmlが入っているので，このままで動きます．
+
 
 `base_score = MusicScore(file, 0.5)`
 となっているところは1.0か0.5にすることで結果が変わります．
@@ -79,5 +80,3 @@ pip install music21 glob itertools numpy os
 
 
 実行したらoutディレクトリに出力されると思います．
-今既にファイルが入っているので，一回全て消してから実行するといいかもしれません．
-
